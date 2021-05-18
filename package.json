@@ -1,18 +1,9 @@
 {
-  "name": "chess-clock",
-  "main": "./lib/chess-clock.js",
-  "exports": "./lib/chess-clock.js",
-  "version": "0.0.1",
+  "name": "chess-clock2",
   "description": "Chess clock API",
-  "files": [
-    "lib/**/*"
-  ],
-  "scripts": {
-    "build": "tsc",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "lint": "eslint",
-    "test": "jest"
-  },
+  "author": "Nikola Radulaški",
+  "license": "MIT",
+  "version": "0.0.4",
   "keywords": [
     "chess",
     "chessclock",
@@ -23,8 +14,32 @@
     "timing",
     "timer"
   ],
-  "author": "Nikola Radulaški",
-  "license": "MIT",
+  "type": "module",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./esm": "./lib/index.js",
+    "./cjs": "./lib/cjs/index.js"
+  },
+  "types": "./lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/radulle/chess-clock.git"
+  },
+  "bugs": {
+    "url": "https://github.com/radulle/chess-clock/issues"
+  },
+  "homepage": "https://github.com/radulle/chess-clock",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "tsc && tsc --target es5 --module commonjs --outDir ./lib/cjs && echo { \"type\": \"commonjs\" } > ./lib/cjs/package.json",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint",
+    "test": "jest"
+  },
   "devDependencies": {
     "@types/jest": "^26.0.23",
     "@typescript-eslint/eslint-plugin": "^4.23.0",

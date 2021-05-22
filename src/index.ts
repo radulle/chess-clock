@@ -1,7 +1,8 @@
-export enum Increment {
+export enum Mode {
   'Delay',
   'Bronstein',
   'Fischer',
+  'Hourglass',
 }
 
 export enum Status {
@@ -11,14 +12,14 @@ export enum Status {
   'done',
 }
 
-const TIME = 5 * 6000
-const INCREMENT = 5
-const INCREMENT_TYPE = Increment.Fischer
+const TIME = 5 * 60_000
+const INCREMENT = 5000
+const MODE = Mode.Fischer
 const UPDATE_INTERVAL = 100
 const STAGE_LIST = [
   {
     time: [TIME, TIME] as [number, number],
-    incrementType: INCREMENT_TYPE,
+    mode: MODE,
     increment: INCREMENT,
   },
 ]
@@ -28,7 +29,7 @@ interface Stage {
   time: [number, number]
   move?: number
   increment?: number
-  incrementType?: Increment
+  mode?: Mode
 }
 
 export interface State {
@@ -39,145 +40,207 @@ export interface State {
   status: Status
   stage: [Stage, Stage]
   timestamp?: number
+  stages: Stage[]
 }
 
 export interface TimerInterface {
-  stageList?: Stage[]
+  stages?: Stage[]
   updateInterval?: number
   callback?: (state: State) => void
 }
 
+/** Chess timer */
 export class Timer {
-  #move: [number, number] = [0, 0]
-  #remainingTime: [number, number]
-  #lastPlayer?: 0 | 1
-  #log: [number[], number[]] = [[], []]
-  #status: Status = Status.ready
-  #stage: [Stage, Stage]
+  private _move: [number, number] = [0, 0]
+  private _remainingTime: [number, number]
+  private _lastPlayer?: 0 | 1
+  private _log: [number[], number[]] = [[], []]
+  private _status: Status = Status.ready
+  private _stage: [Stage, Stage]
 
-  #stageList: Stage[]
-  #updateInterval: number
-  #callback?: (state: State) => void
+  private _stages: Stage[]
+  private _updateInterval: number
+  private _callback?: (state: State) => void
 
-  #timestamp?: number
-  #interval?: NodeJS.Timeout
+  private _timestamp?: number
+  private _interval?: NodeJS.Timeout
 
   constructor({
-    stageList = STAGE_LIST,
+    stages = STAGE_LIST,
     updateInterval = UPDATE_INTERVAL,
     callback,
   }: TimerInterface = {}) {
-    this.#stageList = stageList.map((e, i) => ({ i, ...e }))
-    this.#stage = [this.#stageList[0], this.#stageList[0]]
-    this.#remainingTime = [...this.#stageList[0].time]
+    this._stages = stages.map((e, i) => ({ i, ...e }))
+    this._stage = [this._stages[0], this._stages[0]]
+    this._remainingTime = [...this._stages[0].time]
 
-    this.#updateInterval = updateInterval
-    this.#callback = callback
+    this._updateInterval = updateInterval
+    this._callback = callback
   }
 
-  reset() {
-    this.#log = [[], []]
-    this.#move = [0, 0]
-    this.#remainingTime = [...this.#stageList[0].time]
-    this.#lastPlayer = undefined
-    this.#status = Status.ready
-    this._callback()
+  /** Resets game to initial or new game parameters (stages). */
+  reset(stages?: Stage[]) {
+    if (stages) this._stages = stages.map((e, i) => ({ i, ...e }))
+    this._log = [[], []]
+    this._move = [0, 0]
+    this._remainingTime = [...this._stages[0].time]
+    this._lastPlayer = undefined
+    this._status = Status.ready
+    this._invokeCallback()
   }
 
+  /** Pauses game. */
   pause() {
-    if (this.#status !== Status.live) return
-    if (this.#interval) clearInterval(this.#interval)
-    this._record(this._otherPlayer)
-    this.#status = Status.paused
-    this._callback()
+    if (this._status !== Status.live || this._lastPlayer === undefined) return
+    if (this._interval !== undefined) clearInterval(this._interval)
+    this._record(this._other(this._lastPlayer))
+    this._status = Status.paused
+    this._invokeCallback()
   }
 
+  /** Resumes paused game. */
   resume() {
-    if (this.#status !== Status.paused) return
-    this.#timestamp = Date.now()
-    this.#interval = setInterval(() => {
-      this._tick(this._otherPlayer)
-    }, this.#updateInterval)
-    this.#status = Status.live
-    this._callback()
+    if (this._status !== Status.paused) return
+    this._timestamp = Date.now()
+    this._interval = setInterval(() => {
+      if (this._lastPlayer !== undefined)
+        this._tick(this._other(this._lastPlayer))
+    }, this._updateInterval)
+    this._status = Status.live
+    this._invokeCallback()
   }
 
+  /** Adds time to a player. */
   addTime(player: 0 | 1, time: number) {
     this._addTime(player, time)
-    this._callback()
+    this._invokeCallback()
   }
 
-  _addTime(player: 0 | 1, time: number) {
-    this.#remainingTime[player] += time
-  }
-
+  /** Ends player's turn (push button). */
   push(player: 0 | 1) {
-    if (this.#status === Status.done) return
-    if (this.#lastPlayer === player) return
-    if (this.#interval) clearInterval(this.#interval)
+    if (this._status === Status.done || this._status === Status.paused) return
+    if (this._lastPlayer === player) return
+    if (this._status === Status.ready) this._status = Status.live
+    if (this._interval !== undefined) clearInterval(this._interval)
 
-    this._tick(player)
+    this._lastPlayer = player
 
-    this.#lastPlayer = player
+    const done = this._record(player)
+    if (done) return
+
     this._logMove(player)
-    this._updateStage(player)
-    this.#log[this._otherPlayer].push(0)
 
-    this.#interval = setInterval(() => {
-      this._tick(this._otherPlayer)
-    }, this.#updateInterval)
+    this._fischer(player)
+    this._bronstein(player)
+    this._hourglass(player)
+
+    this._updateStage(player)
+    this._log[this._other(player)].push(0)
+
+    this._interval = setInterval(() => {
+      this._tick(this._other(player))
+    }, this._updateInterval)
+
+    this._invokeCallback()
   }
 
+  /** Returns game's state. */
   get state(): State {
     return {
-      remainingTime: this.#remainingTime,
-      move: this.#move,
-      stage: this.#stage,
-      lastPlayer: this.#lastPlayer,
-      log: this.#log,
-      status: this.#status,
-      timestamp: this.#timestamp,
+      remainingTime: this._remainingTime,
+      move: this._move,
+      stage: this._stage,
+      lastPlayer: this._lastPlayer,
+      log: this._log,
+      status: this._status,
+      timestamp: this._timestamp,
+      stages: this._stages,
     }
   }
 
-  private _callback() {
-    if (this.#callback) this.#callback(this.state)
+  private _fischer(player: 0 | 1) {
+    if (this._stage[player].mode === Mode.Fischer)
+      this._remainingTime[player] += this._stage[player].increment || 0
+  }
+
+  private _bronstein(player: 0 | 1) {
+    if (this._stage[player].mode === Mode.Bronstein) {
+      const spent = this._log[player][this._log[player].length - 1] || 0
+      const increment = this._stage[player].increment || 0
+      const add = Math.min(spent, increment)
+      this._remainingTime[player] += add
+    }
+  }
+
+  private _hourglass(player: 0 | 1) {
+    if (this._stage[player].mode === Mode.Hourglass) {
+      const spent = this._log[player][this._log[player].length - 1] || 0
+      this._remainingTime[this._other(player)] += spent
+    }
+  }
+
+  private _addTime(player: 0 | 1, time: number) {
+    this._remainingTime[player] += time
+  }
+
+  private _invokeCallback() {
+    if (this._callback) this._callback(this.state)
   }
 
   private _logMove(player: 0 | 1) {
-    this.#move[player]++
+    this._move[player]++
   }
 
   private _updateStage(player: 0 | 1) {
-    const newStage = this.#stageList.find((e) => e.move === this.#move[player])
+    const newStage = this._stages.find((e) => e.move === this._move[player])
     if (newStage) {
       this._addTime(player, newStage.time[player])
-      this.#stage[player] = newStage
+      this._stage[player] = newStage
     }
   }
 
   private _record(player: 0 | 1) {
-    const timestamp = this.#timestamp
-    this.#timestamp = Date.now()
-    if (timestamp !== undefined) {
-      const elapsed = this.#timestamp - timestamp
-      this.#log[player][this.#log[player].length - 1] += elapsed
-      this.#remainingTime[player] -= elapsed
-      if (this.#remainingTime[player] <= 0) {
-        this.#remainingTime[player] = 0
-        this.#status = Status.done
+    const before = this._timestamp
+    const after = (this._timestamp = Date.now())
+
+    if (before !== undefined) {
+      const diff = after - before
+      this._log[player][this._log[player].length - 1] += diff
+
+      if (this._stage[player].mode === Mode.Delay) {
+        this._withDelay(player, diff)
+      } else {
+        this._addTime(player, -diff)
       }
+    }
+
+    if (this._remainingTime[player] <= 0) {
+      this._remainingTime[player] = 0
+      this._status = Status.done
+      return true
+    }
+    return false
+  }
+
+  private _withDelay(player: 0 | 1, diff: number) {
+    const delay = this._stage[player].increment || 0
+    const elapsed = this._log[player][this._log[player].length - 1]
+    if (elapsed - diff > delay) {
+      this._addTime(player, -diff)
+      return
+    }
+    if (elapsed > delay) {
+      this._addTime(player, -(elapsed - delay))
     }
   }
 
   private _tick(player: 0 | 1) {
-    if (this.#status === Status.done) return
-    if (this.#status !== Status.live) this.#status = Status.live
+    if (this._status !== Status.live) return
     this._record(player)
-    this._callback()
+    this._invokeCallback()
   }
 
-  private get _otherPlayer() {
-    return this.#lastPlayer === 1 ? 0 : 1
+  private _other(player: 0 | 1) {
+    return player === 1 ? 0 : 1
   }
 }

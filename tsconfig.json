@@ -3,7 +3,7 @@
     "module": "esnext",
     "target": "es2017",
     "declaration": true,
-    "outDir": "./lib",
+    "outDir": "./lib/esm",
     "strict": true,
     "moduleResolution": "node",
     "esModuleInterop": true

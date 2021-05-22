@@ -1,9 +1,9 @@
 {
-  "name": "chess-clock2",
+  "name": "chess-clock",
   "description": "Chess clock API",
   "author": "Nikola Radulaški",
   "license": "MIT",
-  "version": "0.0.4",
+  "version": "0.0.1",
   "keywords": [
     "chess",
     "chessclock",
@@ -14,15 +14,14 @@
     "timing",
     "timer"
   ],
-  "type": "module",
   "main": "./lib/cjs/index.js",
-  "module": "./lib/index.js",
+  "module": "./lib/esm/index.js",
   "exports": {
-    ".": "./lib/index.js",
-    "./esm": "./lib/index.js",
+    ".": "./lib/esm/index.js",
+    "./esm": "./lib/esm/index.js",
     "./cjs": "./lib/cjs/index.js"
   },
-  "types": "./lib/index.d.ts",
+  "types": "./lib/esm/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/radulle/chess-clock.git"
@@ -35,7 +34,7 @@
     "lib"
   ],
   "scripts": {
-    "build": "tsc && tsc --target es5 --module commonjs --outDir ./lib/cjs && echo { \"type\": \"commonjs\" } > ./lib/cjs/package.json",
+    "build": "rm -rf lib/* && tsc && tsc --target es5 --module commonjs --outDir ./lib/cjs && echo { \"type\": \"module\" } > ./lib/esm/package.json && echo { \"type\": \"commonjs\" } > ./lib/cjs/package.json",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint",
     "test": "jest"

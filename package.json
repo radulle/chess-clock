@@ -3,7 +3,7 @@
   "description": "Chess clock API",
   "author": "Nikola Radulaški",
   "license": "MIT",
-  "version": "0.1.2",
+  "version": "0.2.2",
   "keywords": [
     "chess",
     "chessclock",
@@ -44,7 +44,7 @@
     "lib"
   ],
   "scripts": {
-    "build": "rm -rf lib/* && tsc && tsc --target es5 --module commonjs --outDir ./lib/cjs && echo { \"type\": \"module\" } > ./lib/esm/package.json && echo { \"type\": \"commonjs\" } > ./lib/cjs/package.json",
+    "build": "rm -rf lib/* && tsc && tsc --target es5 --module commonjs --outDir ./lib/cjs --downlevelIteration && echo { \"type\": \"module\" } > ./lib/esm/package.json && echo { \"type\": \"commonjs\" } > ./lib/cjs/package.json",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint",
     "test": "jest"

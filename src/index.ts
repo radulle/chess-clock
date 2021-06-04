@@ -4,6 +4,7 @@ import type {
   ClockState,
   ClockStatus,
 } from './types'
+export * from './types'
 
 const UPDATE_INTERVAL = 100
 

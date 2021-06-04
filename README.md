@@ -6,13 +6,14 @@
   - simple delay
   - Bronstein
   - Fischer
-- game config store comes with most common game types
+- clock config store comes with most common game types
 - supports mid-game player penalty/bonus
 - TDD -> good test coverage
 - full Typescript support
 - vanilla JavaScript
 - 0 dependencies
 - **esm** and **commonjs** imports supported
+- small footprint, less than 2 kb uglified and gzipped
 
 ## Installation
 
@@ -33,94 +34,94 @@ npm install chess-clock
 ### ESM
 
 ```ts
-import { Timer } from 'chess-clock'
+import { Clock } from 'chess-clock'
 ```
 
 ### CommonJS
 
 ```ts
-const { Timer } = require('chess-clock/cjs')
+const { Clock } = require('chess-clock/cjs')
 ```
 
 ## Basic example
 
 ```ts
-import { Timer } from 'chess-clock'
+import { Clock } from 'chess-clock'
 
-const fischer = Timer.getConfig('Fischer Rapid 5|5')!
+const fischer = Clock.getConfig('Fischer Rapid 5|5')!
 const updateInterval = 1000
 const callback = console.info
 
-const timer = new Timer({
+const clock = new Clock({
   ...fischer,
   updateInterval,
   callback,
 })
 
-timer.push(0)
-setTimeout(() => timer.push(1), 2100)
-setTimeout(() => timer.push(0), 4200)
-setTimeout(() => timer.push(1), 8400)
+clock.push(0)
+setTimeout(() => clock.push(1), 2100)
+setTimeout(() => clock.push(0), 4200)
+setTimeout(() => clock.push(1), 8400)
 ```
 
-## Instantiating Timer
+## Instantiating Clock
 
 ```ts
-const timer = new Timer ({
-  // game config (can be retrieved from the Config store or inlined)
-  name: string
-  stages: Stage[]
+const clock = new Clock ({
+  // clock config (can be retrieved from the Config store or inlined)
+  name?: string
+  stages?: Stage[]
   // optional: default is 100ms
   updateInterval?: number
-  // optional: called with game state on each "button" push and on each interval update
-  callback?: (state: State) => void
+  // optional: called with clock state on each "button" push and on each interval update
+  callback?(state: State): void
 })
 ```
 
 ## Instance methods
 
-### Get game's state
+### Get clock's state
 
 ```ts
-timer.state
+clock.state
 ```
 
 ### Add time to a player
 
 ```ts
-timer.addTime(player: 0 | 1, time: number)
+clock.addTime(player: 0 | 1, time: number)
 ```
 
 ### End player's turn
 
 ```ts
-timer.push(player: 0 | 1)
+clock.push(player: 0 | 1)
 ```
 
-### Pause game
+### Pause clock
 
 ```ts
-timer.pause()
+clock.pause()
 ```
 
-### Resume game
+### Resume clock
 
 ```ts
-timer.resume()
+clock.resume()
 ```
 
-### Reset game with old or new game config
+### Reset clock with old or new config
 
 ```ts
-reset()
-reset({ name: string; stages: Stage[] })
+clock.reset()
+clock.reset({ name: string; stages: Stage[] })
 ```
 
 ## Static methods
 
-### Game configurations
+### Clock configurations
 
-Game config store holds arrays of Stage objects.
+Clock config store holds arrays of Stage objects.
 
 ```ts
 Stage {
@@ -138,31 +139,31 @@ Stage {
 ### Add/replace a config in configs store
 
 ```ts
-Timer.setConfig(name: string, stages: Stage[])
+Clock.setConfig(name: string, stages: Stage[])
 ```
 
 ### Delete a config by name in configs store
 
 ```ts
-Timer.deleteConfig(name: string)
+Clock.deleteConfig(name: string)
 ```
 
 ### Get a config by name from configs store
 
 ```ts
-Timer.setConfig(name: string)
+Clock.setConfig(name: string)
 ```
 
 ### List config names from configs store.
 
 ```ts
-Timer.listConfigNames()
+Clock.listConfigNames()
 ```
 
 ### List config entries from configs store
 
 ```ts
-Timer.listConfigEntries()
+Clock.listConfigEntries()
 ```
 
 ## Timing methods ([wikipedia](https://en.wikipedia.org/wiki/Time_control#Chess))

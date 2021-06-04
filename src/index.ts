@@ -1,59 +1,35 @@
+import type {
+  ClockInterface,
+  ClockStage,
+  ClockState,
+  ClockStatus,
+} from './types'
+
 const UPDATE_INTERVAL = 100
 
-export type Mode = 'Delay' | 'Bronstein' | 'Fischer' | 'Hourglass'
-
-export type Status = 'ready' | 'live' | 'paused' | 'done'
-
-export interface Stage {
-  i?: number
-  time: [number, number]
-  move?: number
-  increment: number
-  mode: Mode
-}
-
-export interface State {
-  name?: string
-  move: [number, number]
-  remainingTime: [number, number]
-  lastPlayer?: 0 | 1
-  log: [number[], number[]]
-  status: Status
-  stage: [Stage, Stage]
-  timestamp?: number
-  stages: Stage[]
-}
-
-export interface TimerInterface {
-  name: string
-  stages: Stage[]
-  updateInterval?: number
-  callback?: (state: State) => void
-}
-
-/** Chess timer */
-export class Timer {
+/** Chess clock */
+export class Clock {
   private _name?: string
   private _move: [number, number] = [0, 0]
   private _remainingTime: [number, number]
   private _lastPlayer?: 0 | 1
   private _log: [number[], number[]] = [[], []]
-  private _status: Status = 'ready'
-  private _stage: [Stage, Stage]
+  private _status: ClockStatus = 'ready'
+  private _stage: [ClockStage, ClockStage]
 
-  private _stages: Stage[]
+  private _stages: ClockStage[]
   private _updateInterval: number
-  private _callback?: (state: State) => void
+  private _callback?: (state: ClockState) => void
 
   private _timestamp?: number
   private _interval?: NodeJS.Timeout
 
   constructor({
-    name,
-    stages,
+    name = hourglass.name,
+    stages = hourglass.stages,
     updateInterval = UPDATE_INTERVAL,
     callback,
-  }: TimerInterface) {
+  }: ClockInterface) {
     this._name = name
     this._stages = stages.map((e, i) => ({ i, ...e }))
     this._stage = [this._stages[0], this._stages[0]]
@@ -63,10 +39,10 @@ export class Timer {
     this._callback = callback
   }
 
-  /** Resets game to initial or new game config. */
+  /** Resets clock to initial or new config. */
   reset(): void
-  reset({ name, stages }: { name: string; stages: Stage[] }): void
-  reset({ name, stages }: { name?: string; stages?: Stage[] } = {}) {
+  reset({ name, stages }: { name: string; stages: ClockStage[] }): void
+  reset({ name, stages }: { name?: string; stages?: ClockStage[] } = {}) {
     if (name !== undefined && stages !== undefined) {
       this._stages = stages.map((e, i) => ({ i, ...e }))
       this._name = name
@@ -78,10 +54,11 @@ export class Timer {
     this._remainingTime = [...this._stages[0].time]
     this._lastPlayer = undefined
     this._status = 'ready'
+    this._timestamp = undefined
     this._invokeCallback()
   }
 
-  /** Pauses game. */
+  /** Pauses clock. */
   pause() {
     if (this._status !== 'live' || this._lastPlayer === undefined) return
     if (this._interval !== undefined) clearInterval(this._interval)
@@ -90,7 +67,7 @@ export class Timer {
     this._invokeCallback()
   }
 
-  /** Resumes paused game. */
+  /** Resumes paused clock. */
   resume() {
     if (this._status !== 'paused') return
     this._timestamp = Date.now()
@@ -124,7 +101,6 @@ export class Timer {
 
     this._fischer(player)
     this._bronstein(player)
-    this._hourglass(player)
 
     this._updateStage(player)
     this._log[this._other(player)].push(0)
@@ -136,8 +112,8 @@ export class Timer {
     this._invokeCallback()
   }
 
-  /** Returns game's state. */
-  get state(): State {
+  /** Returns clock's state. */
+  get state(): ClockState {
     return {
       name: this._name,
       remainingTime: this._remainingTime,
@@ -162,13 +138,6 @@ export class Timer {
       const increment = this._stage[player].increment || 0
       const add = Math.min(spent, increment)
       this._remainingTime[player] += add
-    }
-  }
-
-  private _hourglass(player: 0 | 1) {
-    if (this._stage[player].mode === 'Hourglass') {
-      const spent = this._log[player][this._log[player].length - 1] || 0
-      this._remainingTime[this._other(player)] += spent
     }
   }
 
@@ -204,6 +173,8 @@ export class Timer {
         this._withDelay(player, diff)
       } else {
         this._addTime(player, -diff)
+        if (this._stage[player].mode === 'Hourglass')
+          this._addTime(this._other(player), diff)
       }
     }
 
@@ -237,21 +208,21 @@ export class Timer {
     return player === 1 ? 0 : 1
   }
 
-  private static _Configs = new Map<string, Stage[]>()
+  private static _Configs = new Map<string, ClockStage[]>()
 
   /** Add/replace a config in configs store. */
-  static setConfig(name: string, stages: Stage[]) {
-    Timer._Configs.set(name, stages)
+  static setConfig(name: string, stages: ClockStage[]) {
+    Clock._Configs.set(name, stages)
   }
 
   /** Delete a config by name in configs store. */
   static deleteConfig(name: string) {
-    Timer._Configs.delete(name)
+    Clock._Configs.delete(name)
   }
 
   /** Get a config by name from configs store. */
   static getConfig(name: string) {
-    const stages = Timer._Configs.get(name)
+    const stages = Clock._Configs.get(name)
     if (!stages) return
     return {
       name,
@@ -261,16 +232,28 @@ export class Timer {
 
   /** List config names from configs store. */
   static listConfigNames() {
-    return [...Timer._Configs.keys()]
+    return [...Clock._Configs.keys()]
   }
 
   /** List config entries from configs store. */
   static listConfigEntries() {
-    return [...Timer._Configs.entries()]
+    return [...Clock._Configs.entries()]
   }
 }
 
-Timer.setConfig('Fischer Blitz 5|0', [
+const hourglass = {
+  name: 'Hourglass 1',
+  stages: [
+    {
+      time: [60_000, 60_000],
+      mode: 'Hourglass',
+      increment: 0,
+    },
+  ] as ClockStage[],
+}
+Clock.setConfig(hourglass.name, hourglass.stages)
+
+Clock.setConfig('Fischer Blitz 5|0', [
   {
     time: [300_000, 300_000],
     mode: 'Fischer',
@@ -278,7 +261,7 @@ Timer.setConfig('Fischer Blitz 5|0', [
   },
 ])
 
-Timer.setConfig('Fischer Rapid 5|5', [
+Clock.setConfig('Fischer Rapid 5|5', [
   {
     time: [300_000, 300_000],
     mode: 'Fischer',
@@ -286,7 +269,7 @@ Timer.setConfig('Fischer Rapid 5|5', [
   },
 ])
 
-Timer.setConfig('Fischer Rapid 10|5', [
+Clock.setConfig('Fischer Rapid 10|5', [
   {
     time: [600_000, 600_000],
     mode: 'Fischer',
@@ -294,7 +277,7 @@ Timer.setConfig('Fischer Rapid 10|5', [
   },
 ])
 
-Timer.setConfig('Delay Bullet 1|2', [
+Clock.setConfig('Delay Bullet 1|2', [
   {
     time: [60_000, 60_000],
     mode: 'Delay',
@@ -302,7 +285,7 @@ Timer.setConfig('Delay Bullet 1|2', [
   },
 ])
 
-Timer.setConfig('Bronstein Bullet 1|2', [
+Clock.setConfig('Bronstein Bullet 1|2', [
   {
     time: [60_000, 60_000],
     mode: 'Bronstein',
@@ -310,15 +293,7 @@ Timer.setConfig('Bronstein Bullet 1|2', [
   },
 ])
 
-Timer.setConfig('Hourglass 1', [
-  {
-    time: [60_000, 60_000],
-    mode: 'Hourglass',
-    increment: 0,
-  },
-])
-
-Timer.setConfig('Tournament 40/120|5, 60|5', [
+Clock.setConfig('Tournament 40/120|5, 60|5', [
   {
     time: [7_200_000, 7_200_000],
     mode: 'Delay',

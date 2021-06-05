@@ -29,6 +29,18 @@ describe('Clock', () => {
       expect(clock.state.move).toStrictEqual([0, 0])
     })
 
+    it('can return white', () => {
+      const clock = new Clock(noIncrement)
+      expect(clock.state.white).toBe(undefined)
+      clock.push(1)
+      clock.push(0)
+      expect(clock.state.white).toBe(0)
+      clock.reset()
+      expect(clock.state.white).toBe(undefined)
+      clock.push(0)
+      expect(clock.state.white).toBe(1)
+    })
+
     it('can track times of two players', () => {
       const clock = new Clock(noIncrement)
       expect(clock.state.remainingTime).toStrictEqual([TIME, TIME])

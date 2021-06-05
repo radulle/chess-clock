@@ -20,6 +20,7 @@ export interface ClockState {
   stage: [ClockStage, ClockStage]
   timestamp?: number
   stages: ClockStage[]
+  white?: 0 | 1
 }
 
 export interface ClockInterface {

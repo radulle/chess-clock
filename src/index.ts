@@ -17,6 +17,7 @@ export class Clock {
   private _log: [number[], number[]] = [[], []]
   private _status: ClockStatus = 'ready'
   private _stage: [ClockStage, ClockStage]
+  private _white?: 1 | 0
 
   private _stages: ClockStage[]
   private _updateInterval: number
@@ -56,6 +57,7 @@ export class Clock {
     this._lastPlayer = undefined
     this._status = 'ready'
     this._timestamp = undefined
+    this._white = undefined
     this._invokeCallback()
   }
 
@@ -92,6 +94,7 @@ export class Clock {
     if (this._lastPlayer === player) return
     if (this._status === 'ready') this._status = 'live'
     if (this._interval !== undefined) clearInterval(this._interval)
+    if (this._timestamp === undefined) this._white = this._other(player)
 
     this._lastPlayer = player
 
@@ -125,6 +128,7 @@ export class Clock {
       status: this._status,
       timestamp: this._timestamp,
       stages: this._stages,
+      white: this._white,
     }
   }
 

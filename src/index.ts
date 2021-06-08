@@ -89,9 +89,9 @@ export class Clock {
   }
 
   /** Ends player's turn (push button). */
-  push(player: 0 | 1) {
-    if (this._status === 'done' || this._status === 'paused') return
-    if (this._lastPlayer === player) return
+  push(player: 0 | 1): boolean {
+    if (this._status === 'done' || this._status === 'paused') return false
+    if (this._lastPlayer === player) return false
     if (this._status === 'ready') this._status = 'live'
     if (this._interval !== undefined) clearInterval(this._interval)
     if (this._timestamp === undefined) this._white = this._other(player)
@@ -99,7 +99,7 @@ export class Clock {
     this._lastPlayer = player
 
     const done = this._record(player)
-    if (done) return
+    if (done) return false
 
     this._logMove(player)
 
@@ -114,6 +114,7 @@ export class Clock {
     }, this._updateInterval)
 
     this._invokeCallback()
+    return true
   }
 
   /** Returns clock's state. */
